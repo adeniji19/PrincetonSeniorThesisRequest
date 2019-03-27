@@ -1,11 +1,14 @@
 package thesis.ogunlana.com.dronerequest;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.v7.app.AppCompatActivity;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -15,17 +18,18 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.auth.api.Auth;
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
-import com.google.android.gms.auth.api.signin.GoogleSignInResult;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.SignInButton;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -33,12 +37,10 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-import org.w3c.dom.Text;
-
 import java.util.HashMap;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity implements GoogleApiClient.OnConnectionFailedListener, View.OnClickListener, ValueEventListener {
+public class MainActivity extends FragmentActivity implements View.OnClickListener, GoogleMap.OnMapClickListener, OnMapReadyCallback, ValueEventListener {
 
     private static String[][] pickUpSpots = new String[][]{
             new String[]{"Scully Courtyard", "40.344517", "-74.654794"},
@@ -58,20 +60,20 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     };
 
     private FusedLocationProviderClient mFusedLocationClient;
-    private String netid, pickUpLoc;
-    private GoogleApiClient mGoogleApiClient;
-    private TextView statusText, netidText, locaitonText, deliveryText;
+    private String netid, pickUpLoc, displayName;
+    private TextView statusText, locationText, deliveryText;
     private TextView idNumText, buildingText, roomNumText, droneStatusText;
-    private SignInButton signInButton;
     private Button signOutButton, requestBtn, receivedBtn;
     private RadioButton proxBtn, packageBtn;
-    private LinearLayout signInLayout, signOutLayout, dataLayout;
+    private LinearLayout dataLayout;
     private LinearLayout proxLayout, packageLayout, confirmLayout;
     private RadioGroup deliveryType;
     private String code = "null";
+    private LatLng droneLocation;
+    private GoogleMap gMap;
+    private Marker droneMarker = null;
 
     private static final String TAG = "SignInActivity";
-    private static final int RC_SIGN_IN = 9001;
 
     private FirebaseDatabase firebaseDatabase = FirebaseDatabase.getInstance();
     private DatabaseReference mRootReference = firebaseDatabase.getReference();
@@ -85,28 +87,18 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         Log.v("testing", "beginning");
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        // Configure Google Sign In
-        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(getString(R.string.default_web_client_id))
-                .requestEmail()
-                .build();
+        Bundle extras = getIntent().getExtras();
+        netid = extras.getString("netid");
+        netid = netid.replaceAll("\\.", "");
+        displayName = extras.getString("displayname");
 
-        mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .enableAutoManage(this, this)
-                .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
-                .build();
-
-        netid = null;
         statusText = (TextView) findViewById(R.id.statusText);
-        netidText = (TextView) findViewById(R.id.netidText);
-        locaitonText = (TextView) findViewById(R.id.gpsText);
+        locationText = (TextView) findViewById(R.id.gpsText);
         idNumText = (TextView) findViewById(R.id.idNumText);
         buildingText = (TextView) findViewById(R.id.buildingText);
         roomNumText = (TextView) findViewById(R.id.roomNumText);
         deliveryText = (TextView) findViewById(R.id.deliveryIdText);
         droneStatusText = (TextView) findViewById(R.id.droneStatusText);
-        signInLayout = (LinearLayout) findViewById(R.id.signInLayout);
-        signOutLayout = (LinearLayout) findViewById(R.id.signOutLayout);
         dataLayout = (LinearLayout) findViewById(R.id.dataLayout);
         proxLayout = (LinearLayout) findViewById(R.id.proxLayout);
         packageLayout = (LinearLayout) findViewById(R.id.packageLayout);
@@ -120,19 +112,21 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         requestBtn.setOnClickListener(this);
         receivedBtn = (Button) findViewById(R.id.receivedBtn);
         receivedBtn.setOnClickListener(this);
-        signInButton = (SignInButton) findViewById(R.id.signIn);
-        signInButton.setOnClickListener(this);
 
         signOutButton = (Button) findViewById(R.id.signOut);
         signOutButton.setOnClickListener(this);
 
+        statusText.setText("Hello, " + displayName);
+
+        MapFragment mapFragment = (MapFragment) getFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
+
+        droneLocation = null;
     }
 
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.signIn:
-                signIn();
-                break;
             case R.id.signOut:
                 signOut();
                 break;
@@ -152,133 +146,66 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     }
 
     private void received() {
-        if(!deliveryText.getText().toString().equals(code)) {
+        if (!deliveryText.getText().toString().equals(code)) {
             Toast.makeText(this, "Incorrect Delivery ID. Try Again.", Toast.LENGTH_LONG).show();
             return;
         }
-        locaitonText.setText("");
+        locationText.setText("");
         deliveryText.setText("");
 
         String identity;
-        if(proxLayout.getVisibility() == View.VISIBLE && proxLayout.isShown()) {
+        if (proxLayout.getVisibility() == View.VISIBLE && proxLayout.isShown()) {
             identity = buildingText.getText().toString() + " " + roomNumText.getText().toString();
-            //deliveryRequest.child(netid).setValue("0000, netid: " + netid + ", identity: " + roomAddress + ", " + "location: " + pickUpLoc);
-        }
-        else {
+        } else {
             identity = idNumText.getText().toString();
-            //deliveryRequest.child(netid).setValue("0000, netid: " + netid + ", identity: " + proxid + ", location: " + pickUpLoc);
         }
-        createRequestNode(netid, "0000", identity, pickUpLoc);
+        createRequestNode(netid, "0000", identity, pickUpLoc, Long.toString(System.currentTimeMillis()));
         droneStatusText.setText("Status: Drone Returning To Sender");
     }
 
-    private void signIn() {
-        Log.d(TAG, "sign in clicked!");
-        Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(mGoogleApiClient);
-        startActivityForResult(signInIntent, RC_SIGN_IN);
-    }
-
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        Log.d(TAG, "requestCode " + requestCode);
-
-        if (requestCode == RC_SIGN_IN) {
-            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
-            handleSignInResult(result);
-        }
-    }
-
-    private void handleSignInResult(GoogleSignInResult result) {
-        Log.d(TAG, "handleSignInResult: " + result.isSuccess());
-        if (result.isSuccess()) {
-            GoogleSignInAccount account = result.getSignInAccount();
-            netid = account.getEmail();
-
-            if (netid.contains("@"))
-                netid = netid.substring(0, netid.indexOf('@'));
-            statusText.setText("Hello, " + account.getDisplayName());
-            netidText.setText("Netid: " + netid);
-
-
-            signInLayout.setVisibility(View.GONE);
-            netidText.setVisibility(View.VISIBLE);
-            signOutLayout.setVisibility(View.VISIBLE);
-            deliveryType.setVisibility(View.VISIBLE);
-            dataLayout.setVisibility(View.VISIBLE);
-            if(proxBtn.isChecked()) {
-                proxLayout.setVisibility(View.VISIBLE);
-                packageLayout.setVisibility(View.GONE);
-            }
-            else {
-                proxLayout.setVisibility(View.GONE);
-                packageLayout.setVisibility(View.VISIBLE);
-            }
-
-        } else {
-            Log.d(TAG, "Failed to login");
-        }
-    }
-
     private void signOut() {
-        Auth.GoogleSignInApi.signOut(mGoogleApiClient).setResultCallback(new ResultCallback<Status>() {
-            @Override
-            public void onResult(Status status) {
-                if (status.isSuccess()) {
-                    statusText.setText("Sign into your Princeton email below.");
-                    netidText.setText(" ");
-                    signInLayout.setVisibility(View.VISIBLE);
-                    netidText.setVisibility(View.GONE);
-                    signOutLayout.setVisibility(View.GONE);
-                    deliveryType.setVisibility(View.GONE);
-                    dataLayout.setVisibility(View.GONE);
-                    proxLayout.setVisibility(View.GONE);
-                    packageLayout.setVisibility(View.GONE);
-                    confirmLayout.setVisibility(View.GONE);
-                    locaitonText.setText(" ");
-                } else {
-                    statusText.setText("Failed to Sign Out.");
-                    netidText.setText(" ");
-                }
-            }
-        });
+        Intent myIntent = new Intent(MainActivity.this, OpeningActivity.class);
+        myIntent.putExtra("close", true);
+        MainActivity.this.startActivity(myIntent);
     }
 
     @SuppressLint("MissingPermission")
     private void droneRequest() {
-        Log.d(TAG, "request made");
-        locaitonText.setText("Getting location...");
+        Log.d("Drone Request", "request made");
+        locationText.setText("Getting location...");
         mFusedLocationClient.getLastLocation()
                 .addOnSuccessListener(this, new OnSuccessListener<Location>() {
                     @Override
                     public void onSuccess(Location location) {
                         // Got last known location. In some rare situations this can be null.
                         if (location != null) {
+                            Log.d("Drone Request", location.getLatitude() + " " + location.getLongitude());
                             pickUpLoc = getPickUpLocation(location);
-                            locaitonText.setText("Pick up location: " + pickUpLoc);
+                            locationText.setText("Pick up location: " + pickUpLoc);
                             droneStatusText.setText("Status: Request Not Seen Yet");
                             // ADD IN THE OTHER INFO TO BE SENT TO THE COMMAND APP
 
                             String identity;
-                            if(proxLayout.getVisibility() == View.VISIBLE && proxLayout.isShown()) {
+                            if (proxLayout.getVisibility() == View.VISIBLE && proxLayout.isShown()) {
                                 identity = buildingText.getText().toString() + " " + roomNumText.getText().toString();
-                                //deliveryRequest.child(netid).setValue("netid: " + netid + ", identity: " + roomAddress + ", " + "location: " + pickUpLoc);
-                            }
-                            else {
+                            } else {
                                 identity = idNumText.getText().toString();
-                                //deliveryRequest.child(netid).setValue("netid: " + netid + ", identity: " + proxid + ", location: " + pickUpLoc);
                             }
-                            createRequestNode(netid, "null", identity, pickUpLoc);
+                            createRequestNode(netid, "null", identity, pickUpLoc, Long.toString(System.currentTimeMillis()));
                         }
                     }
                 });
     }
 
-    private void createRequestNode(String netid, String code, String identity, String location) {
-        netid = netid.replaceAll("\\.","");
+    private void createRequestNode(String netid, String code, String identity, String location, String time) {
+        netid = netid.replaceAll("\\.", "");
         deliveryRequest.child(netid).child("code").setValue(code);
         deliveryRequest.child(netid).child("netid").setValue(netid);
         deliveryRequest.child(netid).child("identity").setValue(identity);
-        deliveryRequest.child(netid).child("location").setValue(location);
+        deliveryRequest.child(netid).child("droplocation").setValue(location);
+        deliveryRequest.child(netid).child("dronelocationlat").setValue("null");
+        deliveryRequest.child(netid).child("dronelocationlng").setValue("null");
+        deliveryRequest.child(netid).child("time").setValue(time);
     }
 
     private String getPickUpLocation(Location location) {
@@ -288,10 +215,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         double minDist = Double.MAX_VALUE;
         double currDist;
 
-        for(String[] loc : pickUpSpots)
-        {
+        for (String[] loc : pickUpSpots) {
             currDist = dist(lat, lon, Double.parseDouble(loc[1]), Double.parseDouble(loc[2]));
-            if(currDist < minDist) {
+            if (currDist < minDist) {
                 minDist = currDist;
                 dropPoint = loc[0];
             }
@@ -301,7 +227,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     }
 
     private double dist(double x1, double y1, double x2, double y2) {
-        return Math.sqrt( (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) );
+        return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
     }
 
     private void packageSecurity() {
@@ -317,31 +243,37 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     }
 
     @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        Log.d(TAG, "connection failed");
-    }
-
-    @Override
     public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
         // update student about drone status - only their netid should be monitored
         HashMap<String, HashMap<String, String>> users;
-
-        if(dataSnapshot.getKey() != null)
-        {
+        Log.d("DATA_STUFF", "Some change! " + netid);
+        if (dataSnapshot.getKey() != null) {
             users = (HashMap<String, HashMap<String, String>>) dataSnapshot.getValue();
-            if(users == null)
+            if (users == null)
                 return;
             for (Map.Entry<String, HashMap<String, String>> entry : users.entrySet()) {
                 HashMap<String, String> user = entry.getValue();
 
-                if(user != null && user.containsKey("netid") && user.containsKey("code") && user.containsKey("identity") && user.containsKey("location")) {
+                Log.d("DATA_STUFF", user.toString());
+
+                if (user != null && user.containsKey("netid") && user.get("netid").equals(netid)
+                        && user.containsKey("code") && user.containsKey("identity") && user.containsKey("droplocation")) {
                     Log.d("DATA_STUFF", "onDataChange B4: " + user);
-                    if (user.get("netid").equals(netid) && user.get("code").equals("0000")) {
+                    if(user.containsKey("dronelocationlat") && user.containsKey("dronelocationlng")) {
+                        Log.d("DATA_STUFF", "check");
+                        if(gMap != null && !(user.get("dronelocationlat").equals("null") || user.get("dronelocationlng").equals("null"))) {
+                            Log.d("DATA_STUFF", "change occurs");
+                            droneLocation = new LatLng(Double.parseDouble(user.get("dronelocationlat")), Double.parseDouble(user.get("dronelocationlng")));
+                            updateDroneLocation();
+                        }
+                    }
+
+                    if (user.get("code").equals("0000")) {
                         Log.d("DATA_STUFF", "onDataChange: " + user);
-                        droneStatusText.setText("Status: Drone Returning To Sender");
+                        droneStatusText.setText("Status: Drone Will Return To Sender");
                         confirmLayout.setVisibility(View.GONE);
                         return;
-                    } else if (user.get("netid").equals(netid) && !user.get("code").equals("null")) {
+                    } else if (!user.get("code").equals("null")) {
                         Log.d("DATA_STUFF", "onDataChange: " + user);
                         code = user.get("code");
                         droneStatusText.setText("Status: Acknowledged & Sending Drone");
@@ -349,41 +281,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                     }
                 }
             }
-
         }
-
-
-
-
-
-        //for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-
-            /*if(data.get("netid").equals(netid) && data.get("code").equals("0000")) {
-                droneStatusText.setText("Status: Drone Returning To Sender");
-                confirmLayout.setVisibility(View.GONE);
-                return;
-            }
-            else if(data.get("netid").equals(netid) && !data.get("code").equals("null")) {
-                droneStatusText.setText("Status: Acknowledged & Sending Drone");
-                confirmLayout.setVisibility(View.VISIBLE);
-            }*/
-
-            /*
-            if(android.text.TextUtils.isDigitsOnly(data.substring(0,4)) && data.substring(13,data.indexOf(",", 5)).equals(netid)) {
-                code = data.substring(0,4);
-                if(code.equals("0000")) {
-                    droneStatusText.setText("Status: Drone Returning To Sender");
-                    confirmLayout.setVisibility(View.GONE);
-                    return;
-                }
-                droneStatusText.setText("Status: Acknowledged & Sending Drone");
-                confirmLayout.setVisibility(View.VISIBLE);
-
-            }
-            else if(data.substring(7,data.indexOf(",", 5)).equals(netid)) {
-                droneStatusText.setText("Status: Request Not Seen Yet");
-            }*/
-        //}
     }
 
     @Override
@@ -395,5 +293,73 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     protected void onStart() {
         super.onStart();
         deliveryRequest.addValueEventListener(this);
+    }
+
+    @Override
+    public void onMapClick(LatLng latLng) {
+        setResultToToast("Cannot Add Waypoint Manually");
+    }
+
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        if (gMap == null) {
+            gMap = googleMap;
+            setUpMap();
+            float zoomlevel = (float) 15.0;
+            CameraUpdate cu = CameraUpdateFactory.newLatLngZoom(new LatLng(40.3468, -74.6552), zoomlevel);
+            gMap.moveCamera(cu);
+        }
+    }
+
+    private void setUpMap() {
+        gMap.setOnMapClickListener(this);// add the listener for click for a map object
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        gMap.setMyLocationEnabled(true);
+    }
+
+    private void setResultToToast(final String string){
+        MainActivity.this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(MainActivity.this, string, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // Update the drone location on the map
+    private void updateDroneLocation(){
+        //Create MarkerOptions object
+        final MarkerOptions markerOptions = new MarkerOptions();
+        markerOptions.position(droneLocation);
+        markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.box_package));
+
+        Log.d("DATA_STUFF", "inside update drone");
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Log.d("DATA_STUFF", "in runnable " + droneLocation.latitude + " " + droneLocation.longitude);
+                if (droneMarker != null) {
+                    droneMarker.remove();
+                }
+
+                if (checkGpsCoordination(droneLocation.latitude, droneLocation.longitude)) {
+                    droneMarker = gMap.addMarker(markerOptions);
+                }
+            }
+        });
+    }
+
+    private static boolean checkGpsCoordination(double latitude, double longitude) {
+        return (latitude > -90 && latitude < 90 && longitude > -180 && longitude < 180) && (latitude != 0f && longitude != 0f);
     }
 }
