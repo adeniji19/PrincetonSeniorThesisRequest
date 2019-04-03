@@ -59,16 +59,17 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             new String[]{"1903 Courtyard", "40.346023", "-74.657142"}
     };
 
+    private int idAttemptCount = 0;
     private FusedLocationProviderClient mFusedLocationClient;
     private String netid, pickUpLoc, displayName;
     private TextView statusText, locationText, deliveryText;
     private TextView idNumText, buildingText, roomNumText, droneStatusText;
-    private Button signOutButton, requestBtn, receivedBtn;
-    private RadioButton proxBtn, packageBtn;
-    private LinearLayout dataLayout;
+    private Button signOutButton, requestBtn, receivedBtn, confBtn;
+    private RadioButton proxBtn, packageBtn, lineBtn, triBtn, sqBtn, zzBtn;
+    private LinearLayout confirmShapeLayout;
     private LinearLayout proxLayout, packageLayout, confirmLayout;
     private RadioGroup deliveryType;
-    private String code = "null";
+    private String code = "null", shape = "null";
     private LatLng droneLocation;
     private GoogleMap gMap;
     private Marker droneMarker = null;
@@ -99,7 +100,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         roomNumText = (TextView) findViewById(R.id.roomNumText);
         deliveryText = (TextView) findViewById(R.id.deliveryIdText);
         droneStatusText = (TextView) findViewById(R.id.droneStatusText);
-        dataLayout = (LinearLayout) findViewById(R.id.dataLayout);
+        confirmShapeLayout = (LinearLayout) findViewById(R.id.confirmShapeLayout);
         proxLayout = (LinearLayout) findViewById(R.id.proxLayout);
         packageLayout = (LinearLayout) findViewById(R.id.packageLayout);
         confirmLayout = (LinearLayout) findViewById(R.id.confirmDelivLayout);
@@ -108,10 +109,16 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         proxBtn.setOnClickListener(this);
         packageBtn = (RadioButton) findViewById(R.id.packageBtn);
         packageBtn.setOnClickListener(this);
+        lineBtn = (RadioButton) findViewById(R.id.radioButton1);
+        triBtn = (RadioButton) findViewById(R.id.radioButton2);
+        sqBtn = (RadioButton) findViewById(R.id.radioButton3);
+        zzBtn = (RadioButton) findViewById(R.id.radioButton4);
         requestBtn = (Button) findViewById(R.id.requestBtn);
         requestBtn.setOnClickListener(this);
         receivedBtn = (Button) findViewById(R.id.receivedBtn);
         receivedBtn.setOnClickListener(this);
+        confBtn = (Button) findViewById(R.id.confBtn);
+        confBtn.setOnClickListener(this);
 
         signOutButton = (Button) findViewById(R.id.signOut);
         signOutButton.setOnClickListener(this);
@@ -142,12 +149,51 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             case R.id.receivedBtn:
                 received();
                 break;
+            case R.id.confBtn:
+                confirmShape();
+                break;
+        }
+    }
+
+    private void confirmShape() {
+        Log.d("ShapeID", shape + " " + idAttemptCount);
+        if(shape.equals("CONFIRMED") || shape.equals("UNCONFIRMED"))
+            return;
+        idAttemptCount++;
+        String chosenShape;
+        if(lineBtn.isChecked()) {
+            chosenShape = "LINE";
+        } else if(triBtn.isChecked()) {
+            chosenShape = "TRIANGLE";
+        } else if(sqBtn.isChecked()) {
+            chosenShape = "SQUARE";
+        } else if(zzBtn.isChecked()) {
+            chosenShape = "ZIGZAG";
+        } else {
+            idAttemptCount--;
+            setResultToToast("What's the drone shape?");
+            return;
+        }
+        Log.d("ShapeID", chosenShape + " " + shape + " " + idAttemptCount);
+
+        if(shape.equals("null")) {
+            idAttemptCount--;
+        }
+        if(chosenShape.equals(shape) && idAttemptCount <= 2) {
+            deliveryRequest.child(netid).child("shape").setValue("CONFIRMED");
+            setResultToToast("DroneID confirmed");
+            confirmLayout.setVisibility(View.VISIBLE);
+            confirmShapeLayout.setVisibility(View.GONE);
+        }
+        else if(idAttemptCount >= 2) {
+            setResultToToast("Too many false IDs.");
+            deliveryRequest.child(netid).child("shape").setValue("UNCONFIRMED");
         }
     }
 
     private void received() {
         if (!deliveryText.getText().toString().equals(code)) {
-            Toast.makeText(this, "Incorrect Delivery ID. Try Again.", Toast.LENGTH_LONG).show();
+            setResultToToast("Incorrect Delivery ID. Try Again.");
             return;
         }
         locationText.setText("");
@@ -171,30 +217,30 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
     @SuppressLint("MissingPermission")
     private void droneRequest() {
+        idAttemptCount = 0;
         Log.d("Drone Request", "request made");
         locationText.setText("Getting location...");
         mFusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        // Got last known location. In some rare situations this can be null.
-                        if (location != null) {
-                            Log.d("Drone Request", location.getLatitude() + " " + location.getLongitude());
-                            pickUpLoc = getPickUpLocation(location);
-                            locationText.setText("Pick up location: " + pickUpLoc);
-                            droneStatusText.setText("Status: Request Not Seen Yet");
-                            // ADD IN THE OTHER INFO TO BE SENT TO THE COMMAND APP
+            .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                @Override
+                public void onSuccess(Location location) {
+                    // Got last known location. In some rare situations this can be null.
+                    if (location != null) {
+                        Log.d("Drone Request", location.getLatitude() + " " + location.getLongitude());
+                        pickUpLoc = getPickUpLocation(location);
+                        locationText.setText("Pick up location: " + pickUpLoc);
+                        droneStatusText.setText("Status: Request Not Seen Yet");
 
-                            String identity;
-                            if (proxLayout.getVisibility() == View.VISIBLE && proxLayout.isShown()) {
-                                identity = buildingText.getText().toString() + " " + roomNumText.getText().toString();
-                            } else {
-                                identity = idNumText.getText().toString();
-                            }
-                            createRequestNode(netid, "null", identity, pickUpLoc, Long.toString(System.currentTimeMillis()));
+                        String identity;
+                        if (proxLayout.getVisibility() == View.VISIBLE && proxLayout.isShown()) {
+                            identity = buildingText.getText().toString() + " " + roomNumText.getText().toString();
+                        } else {
+                            identity = idNumText.getText().toString();
                         }
+                        createRequestNode(netid, "null", identity, pickUpLoc, Long.toString(System.currentTimeMillis()));
                     }
-                });
+                }
+            });
     }
 
     private void createRequestNode(String netid, String code, String identity, String location, String time) {
@@ -206,6 +252,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         deliveryRequest.child(netid).child("dronelocationlat").setValue("null");
         deliveryRequest.child(netid).child("dronelocationlng").setValue("null");
         deliveryRequest.child(netid).child("time").setValue(time);
+        deliveryRequest.child(netid).child("shape").setValue("null");
     }
 
     private String getPickUpLocation(Location location) {
@@ -246,7 +293,6 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
         // update student about drone status - only their netid should be monitored
         HashMap<String, HashMap<String, String>> users;
-        Log.d("DATA_STUFF", "Some change! " + netid);
         if (dataSnapshot.getKey() != null) {
             users = (HashMap<String, HashMap<String, String>>) dataSnapshot.getValue();
             if (users == null)
@@ -254,30 +300,35 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             for (Map.Entry<String, HashMap<String, String>> entry : users.entrySet()) {
                 HashMap<String, String> user = entry.getValue();
 
-                Log.d("DATA_STUFF", user.toString());
-
                 if (user != null && user.containsKey("netid") && user.get("netid").equals(netid)
                         && user.containsKey("code") && user.containsKey("identity") && user.containsKey("droplocation")) {
-                    Log.d("DATA_STUFF", "onDataChange B4: " + user);
+
                     if(user.containsKey("dronelocationlat") && user.containsKey("dronelocationlng")) {
-                        Log.d("DATA_STUFF", "check");
                         if(gMap != null && !(user.get("dronelocationlat").equals("null") || user.get("dronelocationlng").equals("null"))) {
-                            Log.d("DATA_STUFF", "change occurs");
                             droneLocation = new LatLng(Double.parseDouble(user.get("dronelocationlat")), Double.parseDouble(user.get("dronelocationlng")));
                             updateDroneLocation();
                         }
                     }
-
-                    if (user.get("code").equals("0000")) {
-                        Log.d("DATA_STUFF", "onDataChange: " + user);
+                    if(user.containsKey("shape"))
+                        shape = user.get("shape");
+                    if((user.containsKey("shape") && !user.get("shape").equals("CONFIRMED") && !user.get("shape").equals("UNCONFIRMED")) && !user.get("shape").equals("null")) {
+                        confirmShapeLayout.setVisibility(View.VISIBLE);
+                    }
+                    if (user.containsKey("shape") && user.get("shape").equals("CONFIRMED") && user.get("code").equals("0000")) {
                         droneStatusText.setText("Status: Drone Will Return To Sender");
                         confirmLayout.setVisibility(View.GONE);
+                        confirmShapeLayout.setVisibility(View.GONE);
                         return;
-                    } else if (!user.get("code").equals("null")) {
-                        Log.d("DATA_STUFF", "onDataChange: " + user);
+                    } else if (user.containsKey("shape") && user.get("shape").equals("CONFIRMED")) {
+                        droneStatusText.setText("Status: Shape Confirmed");
+                        confirmLayout.setVisibility(View.VISIBLE);
+                        confirmShapeLayout.setVisibility(View.GONE);
+                        return;
+                    } else if (user.containsKey("shape") && !user.get("shape").equals("CONFIRMED") && user.containsKey("code") && !user.get("code").equals("null")) {
                         code = user.get("code");
                         droneStatusText.setText("Status: Acknowledged & Sending Drone");
-                        confirmLayout.setVisibility(View.VISIBLE);
+                        confirmLayout.setVisibility(View.GONE);
+                        confirmShapeLayout.setVisibility(View.VISIBLE);
                     }
                 }
             }

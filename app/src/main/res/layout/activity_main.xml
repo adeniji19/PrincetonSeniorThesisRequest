@@ -221,6 +221,68 @@
                 android:text="Received" />
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/confirmShapeLayout"
+            android:layout_width="match_parent"
+            android:layout_height="0px"
+            android:layout_weight=".5"
+            android:orientation="horizontal"
+            android:padding="10dp"
+            android:visibility="gone">
+
+            <RadioGroup
+                android:layout_width="0px"
+                android:layout_height="match_parent"
+                android:layout_weight="8"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/radioButton1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:scaleX="0.8"
+                    android:text="Line"
+                    android:textSize="10dp" />
+
+                <RadioButton
+                    android:id="@+id/radioButton2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:scaleX="0.8"
+                    android:text="Triangle"
+                    android:textSize="10dp" />
+
+                <RadioButton
+                    android:id="@+id/radioButton3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:scaleX="0.8"
+                    android:text="Square"
+                    android:textSize="10dp" />
+
+                <RadioButton
+                    android:id="@+id/radioButton4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:scaleX="0.8"
+                    android:text="ZigZag"
+                    android:textSize="10dp" />
+            </RadioGroup>
+
+            <Button
+                android:id="@+id/confBtn"
+                android:layout_width="0px"
+                android:layout_height="wrap_content"
+                android:layout_weight="2.5"
+                android:padding="15dp"
+                android:text="Confirm"
+                android:textSize="10dp" />
+        </LinearLayout>
+
     </LinearLayout>
 
 
