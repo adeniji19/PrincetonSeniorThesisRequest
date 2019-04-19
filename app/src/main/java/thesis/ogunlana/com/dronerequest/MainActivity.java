@@ -56,7 +56,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             new String[]{"Rockefeller Courtyard", "40.348558", "-74.661565"},
             new String[]{"Hamilton Courtyard", "40.348329", "-74.662161"},
             new String[]{"Wilson Courtyard", "40.345336", "-74.656016"},
-            new String[]{"1903 Courtyard", "40.346023", "-74.657142"}
+            new String[]{"1903 Courtyard", "40.346023", "-74.657142"},
+            new String[]{"Rugby Field Drop", "40.338802", "-74.643799"},
+            new String[]{"Poe Field Drop", "40.343500", "-74.653576"}
     };
 
     private int idAttemptCount = 0;
@@ -207,6 +209,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         }
         createRequestNode(netid, "0000", identity, pickUpLoc, Long.toString(System.currentTimeMillis()));
         droneStatusText.setText("Status: Drone Returning To Sender");
+        confirmLayout.setVisibility(View.GONE);
+        confirmShapeLayout.setVisibility(View.GONE);
     }
 
     private void signOut() {
@@ -269,7 +273,6 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 dropPoint = loc[0];
             }
         }
-
         return dropPoint;
     }
 
@@ -314,12 +317,12 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                     if((user.containsKey("shape") && !user.get("shape").equals("CONFIRMED") && !user.get("shape").equals("UNCONFIRMED")) && !user.get("shape").equals("null")) {
                         confirmShapeLayout.setVisibility(View.VISIBLE);
                     }
-                    if (user.containsKey("shape") && user.get("shape").equals("CONFIRMED") && user.get("code").equals("0000")) {
+                    if (user.containsKey("shape") && user.get("shape").equals("null") && user.get("code").equals("0000")) {
                         droneStatusText.setText("Status: Drone Will Return To Sender");
                         confirmLayout.setVisibility(View.GONE);
                         confirmShapeLayout.setVisibility(View.GONE);
                         return;
-                    } else if (user.containsKey("shape") && user.get("shape").equals("CONFIRMED")) {
+                    } else if (user.containsKey("shape") && user.get("shape").equals("LANDING")) {
                         droneStatusText.setText("Status: Shape Confirmed");
                         confirmLayout.setVisibility(View.VISIBLE);
                         confirmShapeLayout.setVisibility(View.GONE);

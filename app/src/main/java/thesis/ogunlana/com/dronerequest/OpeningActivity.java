@@ -86,6 +86,13 @@ public class OpeningActivity extends AppCompatActivity implements GoogleApiClien
             netid = account.getEmail();
 
             if (netid.contains("@")) {
+                String university = netid.substring(netid.indexOf('@')+1);
+                Log.d("signin", university);
+                if(!university.equals("princeton.edu")) {
+                    signOut();
+                    return;
+                }
+
                 netid = netid.substring(0, netid.indexOf('@'));
             }
             //statusText.setText("Hello, " + account.getDisplayName());

@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/gradient2"
     tools:context="thesis.ogunlana.com.dronerequest.MainActivity">
 
     <LinearLayout
@@ -36,7 +37,8 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:padding="10dp"
-                android:text="Sign Out!" />
+                android:text="Sign Out!"
+                android:background="@drawable/round"/>
 
         </LinearLayout>
 
@@ -178,9 +180,10 @@
 
             <Button
                 android:id="@+id/requestBtn"
-                android:layout_width="wrap_content"
+                android:layout_width="200dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:background="@drawable/round"
                 android:text="Request Drone!" />
 
             <Space

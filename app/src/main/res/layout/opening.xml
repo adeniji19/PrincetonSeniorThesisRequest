@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/gradient2"
     tools:context="thesis.ogunlana.com.dronerequest.OpeningActivity">
 
 
@@ -22,7 +23,8 @@
                 android:id="@+id/statusText"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:padding="10dp"
+                android:gravity="center_horizontal|center_vertical"
+                android:padding="30dp"
                 android:text="Sign in using your Princeton email below."
                 android:textSize="24sp"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -48,7 +50,10 @@
             <com.google.android.gms.common.SignInButton
                 android:id="@+id/signIn"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:scaleX="1.25"
+                android:scaleY="1.25"
+                >
 
             </com.google.android.gms.common.SignInButton>
 
